@@ -13,6 +13,72 @@ $appDir = Join-Path $dataDir "app"
 $schedulesDir = Join-Path $dataDir "schedules"
 Write-Host "Data directory will be: $dataDir"
 
+# Choose source for install
+$sourceChoice = Read-Host "Install source? [1] GitHub download (default), [2] Local folder, [3] Offline zip"
+if ([string]::IsNullOrWhiteSpace($sourceChoice)) {
+    $sourceChoice = "1"
+}
+$appSourceDir = $root
+$sourceLabel = $root
+$tempDir = $null
+
+if ($sourceChoice -eq "1") {
+    $repoDefault = "twinsfan23/OBS-Scheduler"
+    $repo = Read-Host "GitHub repo (owner/name) [default: $repoDefault]"
+    if ([string]::IsNullOrWhiteSpace($repo)) {
+        $repo = $repoDefault
+    }
+    $ref = Read-Host "Release tag (leave blank for main)"
+    if ([string]::IsNullOrWhiteSpace($ref)) {
+        $zipUrl = "https://github.com/$repo/archive/refs/heads/main.zip"
+        $sourceLabel = "https://github.com/$repo (main)"
+    } else {
+        $zipUrl = "https://github.com/$repo/archive/refs/tags/$ref.zip"
+        $sourceLabel = "https://github.com/$repo (tag $ref)"
+    }
+    $tempDir = Join-Path $env:TEMP ("obs-scheduler-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+    $zipPath = Join-Path $tempDir "repo.zip"
+    Write-Host "Downloading $zipUrl"
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
+    Write-Host "Extracting archive..."
+    Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+    $rootFolder = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -ne ".venv" } | Select-Object -First 1
+    if (-not $rootFolder) {
+        Write-Error "Could not find extracted repo folder."
+        exit 1
+    }
+    $appSourceDir = $rootFolder.FullName
+} elseif ($sourceChoice -eq "3") {
+    $zipPath = Read-Host "Path to offline zip file"
+    if (-not (Test-Path $zipPath)) {
+        Write-Error "Zip file not found: $zipPath"
+        exit 1
+    }
+    $sourceLabel = $zipPath
+    $tempDir = Join-Path $env:TEMP ("obs-scheduler-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+    Write-Host "Extracting archive..."
+    Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+    $rootFolder = Get-ChildItem -Path $tempDir -Directory | Select-Object -First 1
+    if (-not $rootFolder) {
+        Write-Error "Could not find extracted repo folder."
+        exit 1
+    }
+    $appSourceDir = $rootFolder.FullName
+} else {
+    $sourceChoice = "2"
+    $localRoot = Read-Host "Local repo folder (leave blank for current: $root)"
+    if (-not [string]::IsNullOrWhiteSpace($localRoot)) {
+        if (-not (Test-Path $localRoot)) {
+            Write-Error "Local folder not found: $localRoot"
+            exit 1
+        }
+        $appSourceDir = $localRoot
+        $sourceLabel = $localRoot
+    }
+}
+
 # Check Python
 Write-Host "Checking Python..."
 try {
@@ -26,14 +92,13 @@ try {
 Write-Host "Ensuring data directory at $dataDir"
 New-Item -ItemType Directory -Force -Path $schedulesDir | Out-Null
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText((Join-Path $dataDir "repo-path.txt"), $root, $utf8NoBom)
+[System.IO.File]::WriteAllText((Join-Path $dataDir "repo-path.txt"), $sourceLabel, $utf8NoBom)
 
 # TODO: When repo is on GitHub, download and extract into $appDir here.
-# For now, copy app files from the local repo next to this script.
 Write-Host "Copying app files to $appDir"
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
-Copy-Item -Path (Join-Path $root "obs-scheduler-api") -Destination $appDir -Recurse -Force
-Copy-Item -Path (Join-Path $root "obs-video-scheduler") -Destination $appDir -Recurse -Force
+Copy-Item -Path (Join-Path $appSourceDir "obs-scheduler-api") -Destination $appDir -Recurse -Force
+Copy-Item -Path (Join-Path $appSourceDir "obs-video-scheduler") -Destination $appDir -Recurse -Force
 
 function Write-TextNoBom($path, $content) {
     [System.IO.File]::WriteAllText($path, $content, $utf8NoBom)
@@ -104,9 +169,13 @@ Push-Location $apiDir
 Pop-Location
 
 # Copy run script to data dir for convenience
-$runBatSrc = Join-Path $root "run-python.bat"
+$runBatSrc = Join-Path $appSourceDir "run-python.bat"
 if (Test-Path $runBatSrc) {
     Copy-Item $runBatSrc -Destination (Join-Path $dataDir "run-python.bat") -Force
+}
+
+if ($tempDir -and (Test-Path $tempDir)) {
+    Remove-Item -Recurse -Force $tempDir
 }
 
 Write-Host ""
