@@ -361,6 +361,19 @@ label {
     vertical-align: top;
 }
 
+.list-body tr {
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.list-body tr:nth-child(even) {
+    background: transparent;
+}
+
+.list-body tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
 .list-body td:first-child, .list-body th:first-child {
     width: 90px;
 }

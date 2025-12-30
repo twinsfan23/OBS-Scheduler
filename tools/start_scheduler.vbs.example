@@ -1,0 +1,6 @@
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run """C:\scheduler\run-python.bat""", 0, False
+Set objFSO = CreateObject("Scripting.FileSystemObject")
+Set objLog = objFSO.OpenTextFile("C:\scheduler\log.txt", 8, True)
+objLog.WriteLine "Scheduler started at " & Now
+objLog.Close

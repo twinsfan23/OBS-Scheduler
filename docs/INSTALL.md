@@ -22,6 +22,20 @@ The scheduler runs plugin-free using obs-websocket (no Java/Tomcat, no custom OB
 3) Open http://localhost:8080/. The UI polls `/CurrentState`, `/ContestState`, `/VideoList`, and `/ScheduleGet` from the Python service.
 4) Schedule videos via the UI, drag to adjust, double-click to remove.
 
+## Update (Windows, Python)
+1) Download `update-python.ps1` from the repo.
+2) Run it in PowerShell (choose GitHub download, local folder, or offline zip).
+3) Start the scheduler again if it was running.
+
+## Auto-start on Windows (optional)
+If you want the scheduler to start at Windows login without showing a console window:
+1) Copy `tools/start_scheduler.vbs.example` to `C:\scheduler\start_scheduler.vbs` (or your install folder).
+2) Edit the `.vbs` file if your install directory is different.
+3) Press `Win+R`, type `shell:startup`, and press Enter.
+4) Move the `start_scheduler.vbs` file into the Startup folder.
+
+This runs `run-python.bat` hidden and appends a simple log line to `C:\scheduler\log.txt`.
+
 ## Settings (config.json)
 | Property | Default value | Description |
 |-|-|-|
