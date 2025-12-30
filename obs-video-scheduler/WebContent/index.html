@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OBS Video Scheduler</title>
+    <meta name="description" content="Scheduler to control pre-recorded video playback in OBS">
+    <meta name="keywords" content="timeslider, scheduler, obs, broadcast, jquery, javascript">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
+    <link href="css/timeslider.css" rel="stylesheet" type="text/css"/>
+    <link href="css/app.css" rel="stylesheet" type="text/css"/>
+</head>
+<body>
+<div class="page-shell">
+    <section class="card streaming-control">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">Streaming control</p>
+                <h3>Go live</h3>
+            </div>
+            <div class="input-row">
+                <button type="button" class="btn secondary" id="start-streaming">Start streaming</button>
+                <button type="button" class="btn ghost" id="stop-streaming">Stop streaming</button>
+            </div>
+        </div>
+        <div class="preview-meta" id="stream-status-text">Status: idle</div>
+    </section>
+
+    <section class="status-grid">
+        <div class="card status-card">
+            <div class="label">OBS status</div>
+            <div id="obs-status" class="status-value"></div>
+        </div>
+        <div class="card status-card">
+            <div class="label">Current playback</div>
+            <div id="current-state" class="status-value"></div>
+        </div>
+        <div class="card status-card">
+            <div class="label">Scheduled video</div>
+            <div id="contest-state" class="status-value"></div>
+        </div>
+    </section>
+
+    <section class="card view-bar">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">View</p>
+                <h3>Timeline & calendar</h3>
+            </div>
+            <div class="view-actions">
+                <button type="button" class="btn ghost mini" id="open-calendar">Calendar</button>
+                <button type="button" class="btn ghost mini" id="open-time">Time</button>
+            </div>
+        </div>
+        <div class="view-tabs" role="tablist">
+            <button type="button" class="tab-btn active" data-view="timeline">Timeline</button>
+            <button type="button" class="tab-btn" data-view="day">Day</button>
+            <button type="button" class="tab-btn" data-view="week">Week</button>
+            <button type="button" class="tab-btn" data-view="month">Month</button>
+        </div>
+    </section>
+
+    <section class="card timeline-card view-panel" data-view-panel="timeline">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">Timeline</p>
+                <h3>Playback plan</h3>
+            </div>
+            <div class="zoom-control">
+                <button type="button" class="btn ghost mini" id="follow-now">Follow now</button>
+                <span class="label">Zoom</span>
+                <div id="zoom-slider123"></div>
+            </div>
+        </div>
+        <div class="slider-wrap">
+            <div id="slider123" class="time-slider"></div>
+        </div>
+    </section>
+
+    <section class="card calendar-card view-panel hidden" data-view-panel="day">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">Calendar</p>
+                <h3 id="day-title">Day view</h3>
+            </div>
+            <div class="nav-controls">
+                <button type="button" class="btn ghost" id="day-prev">Previous day</button>
+                <button type="button" class="btn ghost" id="day-next">Next day</button>
+            </div>
+        </div>
+        <div id="day-view" class="calendar-grid"></div>
+    </section>
+
+    <section class="card calendar-card view-panel hidden" data-view-panel="week">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">Calendar</p>
+                <h3 id="week-title">Week view</h3>
+            </div>
+            <div class="nav-controls">
+                <button type="button" class="btn ghost" id="week-prev">Previous week</button>
+                <button type="button" class="btn ghost" id="week-next">Next week</button>
+            </div>
+        </div>
+        <div id="week-view" class="calendar-grid week"></div>
+    </section>
+
+    <section class="card calendar-card view-panel hidden" data-view-panel="month">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">Calendar</p>
+                <h3 id="month-title">Month view</h3>
+            </div>
+            <div class="nav-controls">
+                <button type="button" class="btn ghost" id="month-prev">Previous month</button>
+                <button type="button" class="btn ghost" id="month-next">Next month</button>
+            </div>
+        </div>
+        <div id="month-view" class="month-grid"></div>
+    </section>
+
+    <section class="lists-grid">
+        <div class="card list-card recurring-panel" id="recurring-panel">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">Schedule</p>
+                    <h3>Schedule Builder</h3>
+                </div>
+            </div>
+            <div class="file-grid">
+                <div class="control-block">
+                    <label for="recurring-video">Video</label>
+                    <select id="recurring-video"></select>
+                </div>
+                <div class="control-block">
+                    <label for="recurring-start">Start date</label>
+                    <input type="date" id="recurring-start"/>
+                </div>
+            </div>
+            <div id="week-0" class="week-panel"></div>
+            <div class="input-row">
+                <button type="button" class="btn secondary" id="add-slot">Add time slot</button>
+                <button type="button" class="btn primary" id="apply-recurring">Apply schedule</button>
+            </div>
+        </div>
+        <div class="card list-card">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">Library</p>
+                    <h3>Videos</h3>
+                </div>
+            </div>
+            <div id="videoList" class="list-body"></div>
+        </div>
+    </section>
+
+    <section class="card settings-panel" id="settings-panel">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">Settings</p>
+                <h3>OBS connection</h3>
+            </div>
+        </div>
+        <div class="file-grid">
+            <div class="control-block">
+                <label for="obs-password">OBS websocket password</label>
+                <input type="password" id="obs-password" placeholder="password" autocomplete="off"/>
+            </div>
+            <div class="control-block">
+                <label for="obs-scene">OBS scene name</label>
+                <input type="text" id="obs-scene" placeholder="Scene 1" autocomplete="off"/>
+            </div>
+            <div class="control-block">
+                <label for="idle-scene-enabled">Use idle scene when not playing</label>
+                <input type="checkbox" id="idle-scene-enabled"/>
+            </div>
+            <div class="control-block">
+                <label for="idle-scene-name">Idle scene name</label>
+                <input type="text" id="idle-scene-name" placeholder="Slides" autocomplete="off"/>
+            </div>
+            <div class="control-block">
+                <label for="obs-layer">OBS layer (index)</label>
+                <input type="number" id="obs-layer" placeholder="1" min="0" step="1"/>
+            </div>
+            <div class="control-block">
+                <label for="obs-left-margin">Left margin (px)</label>
+                <input type="number" id="obs-left-margin" placeholder="0" min="0" step="1"/>
+            </div>
+            <div class="control-block">
+                <label for="obs-top-margin">Top margin (px)</label>
+                <input type="number" id="obs-top-margin" placeholder="0" min="0" step="1"/>
+            </div>
+            <div class="control-block">
+                <label for="obs-rel-width">Relative width (0-1)</label>
+                <input type="number" id="obs-rel-width" placeholder="1" min="0.01" max="1" step="0.01"/>
+            </div>
+            <div class="control-block">
+                <label for="obs-rel-height">Relative height (0-1)</label>
+                <input type="number" id="obs-rel-height" placeholder="1" min="0.01" max="1" step="0.01"/>
+            </div>
+            <div class="control-block">
+                <label for="audio-monitor-sources">Audio monitor sources</label>
+                <input type="text" id="audio-monitor-sources" placeholder="Desktop Audio, Mic/Aux" autocomplete="off"/>
+            </div>
+            <div class="control-block">
+                <label for="audio-monitor-mode">Audio monitoring mode</label>
+                <select id="audio-monitor-mode">
+                    <option value="monitor_and_output">Monitor and Output</option>
+                    <option value="monitor_only">Monitor Only</option>
+                    <option value="monitor_off">Monitor Off</option>
+                </select>
+            </div>
+            <div class="control-block">
+                <label for="audio-monitor-prefix">Audio monitor prefix</label>
+                <input type="text" id="audio-monitor-prefix" placeholder="Scheduler:" autocomplete="off"/>
+            </div>
+            <div class="control-block">
+                <label for="video-dir">Video directory</label>
+                <input type="text" id="video-dir" placeholder="C:/videos/" autocomplete="off"/>
+            </div>
+            <div class="control-block">
+                <label for="archive-dir">Archive directory</label>
+                <input type="text" id="archive-dir" placeholder="C:/scheduler/archive" autocomplete="off"/>
+            </div>
+            <div class="control-block">
+                <label for="ffprobe-path">FFprobe path (optional)</label>
+                <input type="text" id="ffprobe-path" placeholder="C:/ffmpeg/bin/ffprobe.exe" autocomplete="off"/>
+            </div>
+        </div>
+        <div class="input-row">
+            <label for="timezone-select">Timezone</label>
+            <select id="timezone-select"></select>
+        </div>
+        <div class="input-row">
+            <button type="button" class="btn secondary" id="settings-save">Save settings</button>
+            <button type="button" class="btn ghost" id="refresh-videos">Refresh videos</button>
+        </div>
+    </section>
+</div>
+
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script src="js/timeslider.js"></script>
+    <script type="text/javascript">
+
+    function httpGetAsync(theUrl, callback)
+    {
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = function() { 
+            if (xmlHttp.readyState == 4 && xmlHttp.status == 200 && callback)
+                callback(xmlHttp.responseText);
+        }
+        xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+        xmlHttp.send(null);
+    }   
+    
+    var add_event = function(uuid) {    
+        httpGetAsync('/AddScheduleEntry?uuid=' + uuid, update_slider);
+    };
+
+    var remove_event = function(uuid) { 
+        httpGetAsync('/RemoveScheduleEntry?uuid=' + uuid, update_slider);
+    };
+
+    var reschedule_event = function(uuid, new_start) {  
+        httpGetAsync('/RescheduleScheduleEntry?uuid=' + uuid + '&start=' + new_start, update_slider);
+    };
+
+    var save = function() {
+        var saveField = document.getElementById('save-file-name');
+        var fileName = saveField ? saveField.value.trim() : '';
+        if (!fileName && saveField) {
+            saveField.focus();
+            return;
+        }
+        var url = '/SaveSchedule?file=' + encodeURIComponent(fileName);
+        httpGetAsync(url, null);
+    };
+
+    var load = function() {
+        var select = document.getElementById('load_file');
+        if (!select) {
+            console.warn('No saved schedules available to load.');
+            return;
+        }
+        var url = '/LoadSchedule?file=' + encodeURIComponent(select.value);
+        httpGetAsync(url, null);
+    };
+
+    function httpGetAsyncWithError(theUrl, onSuccess, onError) {
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = function() {
+            if (xmlHttp.readyState !== 4) {
+                return;
+            }
+            if (xmlHttp.status >= 200 && xmlHttp.status < 300) {
+                if (onSuccess) onSuccess(xmlHttp.responseText);
+            } else if (onError) {
+                onError(xmlHttp);
+            }
+        };
+        xmlHttp.open("GET", theUrl, true);
+        xmlHttp.send(null);
+    }
+
+    var archive_video = function(uuid) {
+        httpGetAsyncWithError('/ArchiveVideo?uuid=' + encodeURIComponent(uuid), update_slider, function(xhr) {
+            var message = "Archive failed. Please set the archive directory in Settings.";
+            try {
+                var data = JSON.parse(xhr.responseText || "{}");
+                if (data && data.detail) {
+                    message = data.detail;
+                }
+            } catch (e) {
+            }
+            alert(message);
+        });
+    };
+
+    var rename_video = function(uuid) {
+        var newName = prompt("Rename video to:");
+        if (!newName) return;
+        httpGetAsyncWithError('/RenameVideo?uuid=' + encodeURIComponent(uuid) + '&name=' + encodeURIComponent(newName), update_slider, function(xhr) {
+            var message = "Rename failed.";
+            try {
+                var data = JSON.parse(xhr.responseText || "{}");
+                if (data && data.detail) {
+                    message = data.detail;
+                }
+            } catch (e) {
+            }
+            alert(message);
+        });
+    };
+
+    function load_settings() {
+        httpGetAsync('/SettingsGet', function(text) {
+            try {
+                var data = JSON.parse(text);
+                var obsPass = document.getElementById('obs-password');
+                var obsScene = document.getElementById('obs-scene');
+                var idleSceneEnabled = document.getElementById('idle-scene-enabled');
+                var idleSceneName = document.getElementById('idle-scene-name');
+                var obsLayer = document.getElementById('obs-layer');
+                var obsLeft = document.getElementById('obs-left-margin');
+                var obsTop = document.getElementById('obs-top-margin');
+                var obsRelWidth = document.getElementById('obs-rel-width');
+                var obsRelHeight = document.getElementById('obs-rel-height');
+                var audioSources = document.getElementById('audio-monitor-sources');
+                var audioMode = document.getElementById('audio-monitor-mode');
+                var audioPrefix = document.getElementById('audio-monitor-prefix');
+                var videoDir = document.getElementById('video-dir');
+                var archiveDir = document.getElementById('archive-dir');
+                var ffprobePath = document.getElementById('ffprobe-path');
+                if (obsPass) obsPass.value = data["obs-password"] || "";
+                if (obsScene) obsScene.value = data["scene-name"] || data["obs-scene"] || "";
+                if (idleSceneEnabled) idleSceneEnabled.checked = !!data["idle-scene-enabled"];
+                if (idleSceneName) idleSceneName.value = data["idle-scene-name"] || "Slides";
+                if (obsLayer) obsLayer.value = data["source-layer"] || data["obs-layer"] || "";
+                if (obsLeft) obsLeft.value = data["source-left-margin"] || data["obs-left-margin"] || 0;
+                if (obsTop) obsTop.value = data["source-top-margin"] || data["obs-top-margin"] || 0;
+                if (obsRelWidth) obsRelWidth.value = data["source-relative-width"] || data["obs-rel-width"] || 1;
+                if (obsRelHeight) obsRelHeight.value = data["source-relative-height"] || data["obs-rel-height"] || 1;
+                if (audioSources) audioSources.value = data["audio-monitor-sources"] || "";
+                if (audioMode) audioMode.value = data["audio-monitor-mode"] || "monitor_and_output";
+                if (audioPrefix) audioPrefix.value = data["audio-monitor-prefix"] || "Scheduler:";
+                if (videoDir) videoDir.value = data["server-video-dir"] || data["obs-video-dir"] || "";
+                if (archiveDir) archiveDir.value = data["archive-dir"] || "";
+                if (ffprobePath) ffprobePath.value = data["ffprobe-path"] || "";
+            } catch (e) {
+            }
+        });
+    }
+
+    function save_settings() {
+        var obsPass = document.getElementById('obs-password');
+        var obsScene = document.getElementById('obs-scene');
+        var idleSceneEnabled = document.getElementById('idle-scene-enabled');
+        var idleSceneName = document.getElementById('idle-scene-name');
+        var obsLayer = document.getElementById('obs-layer');
+        var obsLeft = document.getElementById('obs-left-margin');
+        var obsTop = document.getElementById('obs-top-margin');
+        var obsRelWidth = document.getElementById('obs-rel-width');
+        var obsRelHeight = document.getElementById('obs-rel-height');
+        var audioSources = document.getElementById('audio-monitor-sources');
+        var audioMode = document.getElementById('audio-monitor-mode');
+        var audioPrefix = document.getElementById('audio-monitor-prefix');
+        var videoDir = document.getElementById('video-dir');
+        var archiveDir = document.getElementById('archive-dir');
+        var ffprobePath = document.getElementById('ffprobe-path');
+        var payload = {
+            "obs-password": obsPass ? obsPass.value : "",
+            "scene-name": obsScene ? obsScene.value : "",
+            "obs-scene": obsScene ? obsScene.value : "",
+            "idle-scene-enabled": idleSceneEnabled ? !!idleSceneEnabled.checked : false,
+            "idle-scene-name": idleSceneName ? idleSceneName.value : "",
+            "source-layer": obsLayer ? obsLayer.value : "",
+            "obs-layer": obsLayer ? obsLayer.value : "",
+            "source-left-margin": obsLeft ? parseFloat(obsLeft.value || "0") : 0,
+            "source-top-margin": obsTop ? parseFloat(obsTop.value || "0") : 0,
+            "source-relative-width": obsRelWidth ? parseFloat(obsRelWidth.value || "1") : 1,
+            "source-relative-height": obsRelHeight ? parseFloat(obsRelHeight.value || "1") : 1,
+            "audio-monitor-sources": audioSources ? audioSources.value : "",
+            "audio-monitor-mode": audioMode ? audioMode.value : "monitor_and_output",
+            "audio-monitor-prefix": audioPrefix ? audioPrefix.value : "Scheduler:",
+            "server-video-dir": videoDir ? videoDir.value : "",
+            "obs-video-dir": videoDir ? videoDir.value : "",
+            "archive-dir": archiveDir ? archiveDir.value : "",
+            "ffprobe-path": ffprobePath ? ffprobePath.value : ""
+        };
+        fetch('/SettingsUpdate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(function() {
+            refresh_videos();
+            return fetch('/ApplyAudioMonitoring', { method: 'POST' });
+        }).then(function(response) {
+            if (!response) return null;
+            return response.json();
+        }).then(function(data) {
+            if (!data || !data.failed || data.failed.length === 0) return;
+            alert('Audio monitoring failed for: ' + data.failed.join(', ') + '. Check the exact input names in OBS.');
+        });
+    }
+
+    function refresh_videos() {
+        fetch('/RefreshVideos', { method: 'POST' }).then(function(response) {
+            return response.json();
+        }).then(function(data) {
+            if (data && data.ffprobe === false) {
+                console.warn('ffprobe not configured; durations may be missing.');
+            }
+            update_video_list();
+            load_video_options();
+        });
+    }
+
+    function start_streaming() {
+        fetch('/StartStreaming', { method: 'POST' });
+    }
+
+    function stop_streaming() {
+        fetch('/StopStreaming', { method: 'POST' });
+    }
+
+    function update_stream_status() {
+        fetch('/StreamStatus').then(function(response) {
+            return response.json();
+        }).then(function(data) {
+            var control = document.querySelector('.streaming-control');
+            var statusText = document.getElementById('stream-status-text');
+            var active = data && data.active;
+            if (control) {
+                control.classList.toggle('streaming-on', !!active);
+                control.classList.toggle('streaming-off', !active);
+            }
+            if (statusText) {
+                statusText.textContent = active ? 'Status: live' : 'Status: idle';
+            }
+        }).catch(function() {
+        });
+    }
+
+    function load_video_options() {
+        fetch('/VideoListJson?type=video').then(function(response) {
+            return response.json();
+        }).then(function(items) {
+            var select = document.getElementById('recurring-video');
+            if (!select) return;
+            select.innerHTML = '';
+            videosIndex = {};
+            items.forEach(function(item) {
+                var opt = document.createElement('option');
+                opt.value = item.name;
+                opt.textContent = item.name;
+                select.appendChild(opt);
+                videosIndex[item.name] = item;
+            });
+        });
+    }
+
+    var wire_controls = function() {
+        var saveButton = document.getElementById('save-btn');
+        if (saveButton) {
+            saveButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                save();
+            });
+        }
+
+        var loadButton = document.getElementById('load-btn');
+        if (loadButton) {
+            loadButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                load();
+            });
+        }
+
+        var settingsSave = document.getElementById('settings-save');
+        if (settingsSave) {
+            settingsSave.addEventListener('click', function(event) {
+                event.preventDefault();
+                save_settings();
+            });
+        }
+
+        var refreshButton = document.getElementById('refresh-videos');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                refresh_videos();
+            });
+        }
+
+        var addSlotButton = document.getElementById('add-slot');
+        if (addSlotButton) {
+            addSlotButton.addEventListener('click', function() {
+                add_slot_row(0);
+            });
+        }
+
+        var startStreamButton = document.getElementById('start-streaming');
+        if (startStreamButton) {
+            startStreamButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                start_streaming();
+            });
+        }
+
+        var stopStreamButton = document.getElementById('stop-streaming');
+        if (stopStreamButton) {
+            stopStreamButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                stop_streaming();
+            });
+        }
+
+        var applyButton = document.getElementById('apply-recurring');
+        if (applyButton) {
+            applyButton.addEventListener('click', function() {
+                apply_recurring_schedule();
+            });
+        }
+
+        var calendarButton = document.getElementById('open-calendar');
+        if (calendarButton) {
+            calendarButton.addEventListener('click', function() {
+                setMonthViewToToday();
+                set_active_view('month');
+            });
+        }
+
+        var timeButton = document.getElementById('open-time');
+        if (timeButton) {
+            timeButton.addEventListener('click', function() {
+                var settingsPanel = document.getElementById('settings-panel');
+                if (settingsPanel) {
+                    settingsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    load_settings();
+                }
+            });
+        }
+
+        var dayPrev = document.getElementById('day-prev');
+        var dayNext = document.getElementById('day-next');
+        if (dayPrev) {
+            dayPrev.addEventListener('click', function() {
+                dayViewDate = new Date((dayViewDate || new Date()).getTime() - 24 * 3600 * 1000);
+                renderDayView(schedule_data);
+            });
+        }
+        if (dayNext) {
+            dayNext.addEventListener('click', function() {
+                dayViewDate = new Date((dayViewDate || new Date()).getTime() + 24 * 3600 * 1000);
+                renderDayView(schedule_data);
+            });
+        }
+
+        var weekPrev = document.getElementById('week-prev');
+        var weekNext = document.getElementById('week-next');
+        if (weekPrev) {
+            weekPrev.addEventListener('click', function() {
+                weekStartDate = new Date((weekStartDate || new Date()).getTime() - 7 * 24 * 3600 * 1000);
+                renderWeekView(schedule_data);
+            });
+        }
+        if (weekNext) {
+            weekNext.addEventListener('click', function() {
+                weekStartDate = new Date((weekStartDate || new Date()).getTime() + 7 * 24 * 3600 * 1000);
+                renderWeekView(schedule_data);
+            });
+        }
+
+        var monthPrev = document.getElementById('month-prev');
+        var monthNext = document.getElementById('month-next');
+        if (monthPrev) {
+            monthPrev.addEventListener('click', function() {
+                shiftMonthView(-1);
+                renderMonthView(schedule_data);
+            });
+        }
+        if (monthNext) {
+            monthNext.addEventListener('click', function() {
+                shiftMonthView(1);
+                renderMonthView(schedule_data);
+            });
+        }
+
+        var followNowButton = document.getElementById('follow-now');
+        if (followNowButton) {
+            followNowButton.addEventListener('click', function() {
+                followNow = true;
+                refresh_timeline();
+            });
+        }
+
+        var slider = document.getElementById('slider123');
+        if (slider) {
+            slider.addEventListener('mousedown', function() {
+                followNow = false;
+            });
+            slider.addEventListener('touchstart', function() {
+                followNow = false;
+            });
+        }
+    };
+
+    var empty_function = function() {
+    }
+
+    var ready = false;
+    var contest_timestamp_ = 0;
+    var schedule_data = [];
+    var selectedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    var currentStateData = null;
+    var contestStateData = null;
+    var currentHoursPerRuler = 8;
+    var videosIndex = {};
+    var dayViewDate = new Date();
+    var weekStartDate = new Date();
+    var monthViewYear = null;
+    var monthViewMonth = null;
+    var followNow = true;
+    
+    
+    var update_schedule = function() {
+        httpGetAsync('/ScheduleGet', update_slider);
+    }
+    
+    var initialize_schedule = function(text) {
+        httpGetAsync("/ScheduleGet", init_slider);                      
+    }
+
+    var update_video_list = function() {
+        httpGetAsync('/VideoList?type=video', initialize_video_list);
+    }
+
+    var initialize_video_list = function(text) {
+        document.getElementById("videoList").innerHTML=text;
+    };
+
+    var initialize_load_select = function(text) {
+        var target = document.getElementById("load-select");
+        if (target) {
+            target.innerHTML = text;
+        }
+    };
+
+    var update_current_status = function() {
+        httpGetAsync('/CurrentStateJson', initialize_current_state_json);
+    }
+
+    var initialize_current_state_json = function(text) {
+        try {
+            currentStateData = JSON.parse(text);
+            render_current_state(currentStateData);
+        } catch (e) {
+            httpGetAsync('/CurrentState', initialize_current_state_html);
+        }
+    };
+
+    var initialize_current_state_html = function(text) {
+        document.getElementById("current-state").innerHTML=text;
+    };
+
+    var update_contest_status = function() {
+        render_scheduled_state();
+    }
+
+    var obsFailureCount = 0;
+    var update_obs_status = function(text) {
+        httpGetAsync('/OBSStatus.jsp', initialize_obs_status);
+    };
+
+    var initialize_obs_status = function(text) {
+        var target = document.getElementById("obs-status");
+        if (!target) return;
+        if (text && text.indexOf("Not connected") !== -1) {
+            obsFailureCount += 1;
+            if (obsFailureCount >= 3) {
+                target.innerHTML = text;
+            }
+            return;
+        }
+        obsFailureCount = 0;
+        target.innerHTML = text;
+    };
+
+    var current_time = (new Date()).getTime();
+    var current_timecells = "";
+
+    wire_controls();
+
+    httpGetAsync("/VideoList?type=video", initialize_video_list);
+    httpGetAsync("/CurrentStateJson", initialize_current_state_json);
+    render_scheduled_state();
+    httpGetAsync("/OBSStatus.jsp", initialize_obs_status);
+    httpGetAsync("/ScheduleList", initialize_load_select);
+    httpGetAsync("/ScheduleGet", initialize_schedule);
+    load_settings();
+    load_video_options();
+    add_slot_row(0);
+    update_stream_status();
+
+    function getOffsetForZone(date, timeZone) {
+        try {
+            var dtf = new Intl.DateTimeFormat('en-US', {
+                timeZone: timeZone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hourCycle: 'h23'
+            });
+            var parts = dtf.formatToParts(date);
+            var map = {};
+            parts.forEach(function(p) {
+                map[p.type] = p.value;
+            });
+            var asUTC = Date.UTC(parseInt(map.year), parseInt(map.month) - 1, parseInt(map.day), parseInt(map.hour), parseInt(map.minute), parseInt(map.second));
+            return asUTC - date.getTime();
+        } catch (e) {
+            return -date.getTimezoneOffset() * 60000;
+        }
+    }
+
+    function zonedDateTimeToUtc(year, month, day, hour, minute, tz) {
+        var base = Date.UTC(year, month - 1, day, hour, minute);
+        var offset = getOffsetForZone(new Date(base), tz);
+        return base - offset;
+    }
+
+    function formatLocal(ts) {
+        try {
+            return new Date(ts).toLocaleString([], { timeZone: selectedTimeZone, hour: 'numeric', minute: '2-digit' });
+        } catch (e) {
+            return new Date(ts).toLocaleTimeString();
+        }
+    }
+
+    function formatTimeRange(startTs, durationMs) {
+        var endTs = startTs + durationMs;
+        var startLabel = new Date(startTs).toLocaleTimeString([], {
+            timeZone: selectedTimeZone,
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+        var endLabel = new Date(endTs).toLocaleTimeString([], {
+            timeZone: selectedTimeZone,
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+        return startLabel + "-" + endLabel;
+    }
+
+    function getZonedToday() {
+        var parts = zonedParts(Date.now());
+        return new Date(parts.year, parts.month - 1, parts.day);
+    }
+
+    function setMonthViewToToday() {
+        var parts = zonedParts(Date.now());
+        monthViewYear = parts.year;
+        monthViewMonth = parts.month;
+    }
+
+    function shiftMonthView(offset) {
+        if (monthViewYear === null || monthViewMonth === null) {
+            setMonthViewToToday();
+        }
+        var month = monthViewMonth + offset;
+        var year = monthViewYear;
+        while (month < 1) {
+            month += 12;
+            year -= 1;
+        }
+        while (month > 12) {
+            month -= 12;
+            year += 1;
+        }
+        monthViewYear = year;
+        monthViewMonth = month;
+    }
+
+    function zonedParts(ts) {
+        var d = new Date(ts);
+        try {
+            var parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: selectedTimeZone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hourCycle: 'h23'
+            }).formatToParts(d);
+            var map = {};
+            parts.forEach(function(p) { map[p.type] = p.value; });
+            return {
+                year: parseInt(map.year),
+                month: parseInt(map.month),
+                day: parseInt(map.day),
+                hour: parseInt(map.hour),
+                minute: parseInt(map.minute)
+            };
+        } catch (e) {
+            return {
+                year: d.getFullYear(),
+                month: d.getMonth() + 1,
+                day: d.getDate(),
+                hour: d.getHours(),
+                minute: d.getMinutes()
+            };
+        }
+    }
+
+    function populateTimezones() {
+        var select = document.getElementById('timezone-select');
+        if (!select) return;
+        var zones = [];
+        if (typeof Intl.supportedValuesOf === 'function') {
+            zones = Intl.supportedValuesOf('timeZone');
+        } else {
+            zones = ['UTC', 'America/New_York', 'Europe/London', 'Europe/Berlin', 'Asia/Singapore', 'Asia/Tokyo'];
+        }
+        var localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (localTz && zones.indexOf(localTz) === -1) {
+            zones.unshift(localTz);
+        }
+        if (zones.indexOf('UTC') === -1) {
+            zones.unshift('UTC');
+        }
+        select.innerHTML = zones.slice(0, 200).map(function(z) {
+            var label = z === localTz ? z + ' (local)' : z;
+            return '<option value="' + z + '"' + (z === selectedTimeZone ? ' selected' : '') + '>' + label + '</option>';
+        }).join('');
+        select.addEventListener('change', function() {
+            selectedTimeZone = select.value;
+            $('#slider123').TimeSlider({ time_zone: selectedTimeZone });
+            setMonthViewToToday();
+            dayViewDate = getZonedToday();
+            weekStartDate = getZonedToday();
+            renderCalendarViews(schedule_data);
+            if (currentStateData) {
+                render_current_state(currentStateData);
+            }
+            render_scheduled_state();
+        });
+    }
+
+    setInterval(update_contest_status, 1000);
+    setInterval(update_obs_status, 1000);
+    setInterval(update_current_status, 1000);
+    setInterval(update_video_list, 1000);
+    setInterval(update_schedule, 1000);
+    setInterval(update_stream_status, 2000);
+    
+    var ts = null;
+
+    function init_slider(text, t) {
+        var data = JSON.parse(text);
+        contest_timestamp_ = data.contest_timestamp;
+        schedule_data = data.schedule || [];
+        var nowTs = Date.now();
+        ts = $('#slider123').TimeSlider({
+            start_timestamp: nowTs - 6 * 60 * 60 * 1000,
+            current_timestamp: nowTs,
+            contest_timestamp: data.contest_timestamp,
+            time_zone: selectedTimeZone,
+            hours_per_ruler: currentHoursPerRuler,
+            on_dblclick_timecell_callback: function(p_id, start, stop) {
+                remove_event(p_id);
+            },
+            timecell_enable_resize: false,
+            on_change_timecell_callback: function(id, start) {
+                reschedule_event(id, start);
+            },
+            init_cells: data.schedule
+        });
+        $('#zoom-slider123').slider({
+            min: 0.33,
+            max: 8,
+            value: currentHoursPerRuler,
+            step: 0.2,
+            slide: function(event, ui) {
+                currentHoursPerRuler = ui.value;
+                $('#slider123').TimeSlider({hours_per_ruler: ui.value});
+                refresh_timeline();
+            }
+        });
+        renderCalendarViews(schedule_data);
+        refresh_timeline();
+    };
+    
+    function update_slider(text) {
+        if (text == 'no-op') {
+            return;
+        }
+        var data = JSON.parse(text);
+        contest_timestamp_ = data.contest_timestamp;
+        schedule_data = data.schedule || [];
+        $('#slider123').TimeSlider('update_cells', data.schedule);
+        renderCalendarViews(schedule_data);
+        render_scheduled_state();
+        refresh_timeline();
+    };
+
+    function refresh_timeline() {
+        if (!followNow) {
+            return;
+        }
+        var fresh_time = (new Date()).getTime();
+        var halfWindow = (currentHoursPerRuler * 3600 * 1000) / 2;
+        var newStart = fresh_time - halfWindow;
+        $('#slider123').TimeSlider('new_start_timestamp', newStart);
+    }
+
+    function formatDuration(ms) {
+        var totalSeconds = Math.max(0, Math.floor(ms / 1000));
+        var h = Math.floor(totalSeconds / 3600);
+        var m = Math.floor((totalSeconds % 3600) / 60);
+        var s = totalSeconds % 60;
+        return h + ":" + (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+    }
+
+    function formatRemaining(seconds) {
+        var totalSeconds = Math.max(0, Math.floor(seconds || 0));
+        var h = Math.floor(totalSeconds / 3600);
+        var m = Math.floor((totalSeconds % 3600) / 60);
+        var s = totalSeconds % 60;
+        if (h > 0) {
+            return h + "h " + m + "m";
+        }
+        if (m > 0) {
+            return m + "m " + s + "s";
+        }
+        return s + "s";
+    }
+
+    function render_current_state(data) {
+        var target = document.getElementById("current-state");
+        if (!target) return;
+        var nowLabel = new Date().toLocaleString([], { timeZone: selectedTimeZone });
+        var lines = [nowLabel];
+        if (data.status === "playing") {
+            lines.push("Currently playing: " + data.name + ", " + formatRemaining(data.seconds_left) + " left");
+        } else if (data.status === "soon") {
+            lines.push("Playing soon: " + data.name + ", in " + data.seconds_until + " seconds");
+        } else {
+            lines.push("Currently happens nothing.");
+        }
+        target.innerHTML = lines.join("<br/>");
+    }
+
+    function render_scheduled_state() {
+        var target = document.getElementById("contest-state");
+        if (!target) return;
+        if (!schedule_data || schedule_data.length === 0) {
+            target.innerHTML = "No videos scheduled.";
+            return;
+        }
+        var now = Date.now();
+        var upcoming = schedule_data.filter(function(e) { return e.start > now; });
+        upcoming.sort(function(a, b) { return a.start - b.start; });
+        if (currentStateData && currentStateData.status === "playing") {
+            var endLabel = currentStateData.stop_ts ? new Date(currentStateData.stop_ts).toLocaleTimeString([], { timeZone: selectedTimeZone, hour: '2-digit', minute: '2-digit' }) : '';
+            target.innerHTML = "Playing now: " + currentStateData.name + (endLabel ? " until " + endLabel : "");
+            return;
+        }
+        if (upcoming.length > 0) {
+            var next = upcoming[0];
+            var nextLabel = new Date(next.start).toLocaleString([], { timeZone: selectedTimeZone });
+            target.innerHTML = "Next: " + next.name + "<br/>" + nextLabel;
+            return;
+        }
+        target.innerHTML = "No upcoming videos.";
+    }
+
+    function renderCalendarViews(schedule) {
+        renderDayView(schedule);
+        renderWeekView(schedule);
+        renderMonthView(schedule);
+    }
+
+    function add_slot_row(weekIndex) {
+        var panel = document.getElementById('week-' + weekIndex);
+        if (!panel) return;
+        var row = document.createElement('div');
+        row.className = 'slot-row';
+        row.innerHTML = '<input type="time" class="slot-time"/>'
+            + '<div class="slot-days">'
+            + '<label><input type="checkbox" value="0"/>Sun</label>'
+            + '<label><input type="checkbox" value="1"/>Mon</label>'
+            + '<label><input type="checkbox" value="2"/>Tue</label>'
+            + '<label><input type="checkbox" value="3"/>Wed</label>'
+            + '<label><input type="checkbox" value="4"/>Thu</label>'
+            + '<label><input type="checkbox" value="5"/>Fri</label>'
+            + '<label><input type="checkbox" value="6"/>Sat</label>'
+            + '</div>'
+            + '<button type="button" class="btn ghost remove-slot">Remove</button>';
+        var remove = row.querySelector('.remove-slot');
+        remove.addEventListener('click', function() {
+            row.remove();
+        });
+        panel.appendChild(row);
+    }
+
+    function build_recurring_entries() {
+        var videoSelect = document.getElementById('recurring-video');
+        var startInput = document.getElementById('recurring-start');
+        if (!videoSelect || !startInput || !startInput.value) {
+            alert('Pick a video and a start date.');
+            return [];
+        }
+        var videoName = videoSelect.value;
+        var weeksOut = 1;
+        var startDate = new Date(startInput.value + 'T00:00:00');
+        var entries = [];
+        var panel = document.getElementById('week-0');
+        if (!panel) return entries;
+        var rows = panel.querySelectorAll('.slot-row');
+        for (var week = 0; week < weeksOut; week++) {
+            rows.forEach(function(row) {
+                var timeInput = row.querySelector('.slot-time');
+                if (!timeInput || !timeInput.value) return;
+                var parts = timeInput.value.split(':');
+                var hour = parseInt(parts[0]);
+                var minute = parseInt(parts[1] || '0');
+                var checked = row.querySelectorAll('input[type="checkbox"]:checked');
+                var base = new Date(startDate.getTime() + (week * 7 * 24 * 3600 * 1000));
+                var baseWeekday = base.getDay();
+                checked.forEach(function(box) {
+                    var day = parseInt(box.value);
+                    if (week === 0 && day < baseWeekday) {
+                        return;
+                    }
+                    var delta = (day - baseWeekday + 7) % 7;
+                    var target = new Date(base.getTime() + delta * 24 * 3600 * 1000);
+                    var utcTs = zonedDateTimeToUtc(target.getFullYear(), target.getMonth() + 1, target.getDate(), hour, minute, selectedTimeZone);
+                    entries.push({
+                        name: videoName,
+                        start_timestamp: utcTs
+                    });
+                });
+            });
+        }
+        return entries;
+    }
+
+    function detect_overlaps(entries) {
+        var overlaps = [];
+        entries.forEach(function(n) {
+            var duration = (videosIndex[n.name] && videosIndex[n.name].duration) || 60000;
+            var nStart = n.start_timestamp;
+            var nStop = nStart + duration;
+            schedule_data.forEach(function(e) {
+                if (nStart < e.stop && e.start < nStop) {
+                    overlaps.push(n);
+                }
+            });
+        });
+        return overlaps;
+    }
+
+    function apply_recurring_schedule() {
+        var entries = build_recurring_entries();
+        if (!entries.length) return;
+        var overlaps = detect_overlaps(entries);
+        var mode = 'skip';
+        if (overlaps.length) {
+            var choice = prompt('Overlap detected. Type "skip", "overwrite", or "shift".', 'skip');
+            if (!choice) return;
+            mode = choice.toLowerCase();
+            if (['skip', 'overwrite', 'shift'].indexOf(mode) === -1) {
+                alert('Invalid choice. Use skip, overwrite, or shift.');
+                return;
+            }
+        }
+        fetch('/BulkSchedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entries: entries, mode: mode })
+        }).then(function(response) {
+            return response.json();
+        }).then(function(data) {
+            update_slider(JSON.stringify(data));
+        });
+    }
+
+    function renderDayView(schedule) {
+        var container = document.getElementById('day-view');
+        if (!container) return;
+        container.innerHTML = '';
+        var target = dayViewDate || new Date();
+        var today = zonedParts(target.getTime());
+        var dayTitle = document.getElementById('day-title');
+        if (dayTitle) {
+            var label = new Date(target.getTime()).toLocaleDateString([], {
+                timeZone: selectedTimeZone,
+                weekday: 'long',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            dayTitle.textContent = "Day view - " + label;
+        }
+        var hours = [];
+        for (var h = 0; h < 24; h++) {
+            hours.push(h);
+        }
+        var items = schedule.filter(function(e) {
+            var p = zonedParts(e.start);
+            return p.year === today.year && p.month === today.month && p.day === today.day;
+        });
+        var list = document.createElement('div');
+        list.className = 'day-grid';
+        var hourHeight = 52;
+        list.style.setProperty('--hour-height', hourHeight + 'px');
+        hours.forEach(function(h) {
+            var row = document.createElement('div');
+            row.className = 'hour-row';
+            row.setAttribute('data-hour', h);
+            row.addEventListener('dragover', function(evt) { evt.preventDefault(); });
+            row.addEventListener('drop', function(evt) {
+                evt.preventDefault();
+                var uuid = evt.dataTransfer.getData('text/plain');
+                if (!uuid) return;
+                var day = today;
+                var newStart = zonedDateTimeToUtc(day.year, day.month, day.day, parseInt(this.dataset.hour), 0, selectedTimeZone);
+                reschedule_event(uuid, newStart);
+            });
+            var label = document.createElement('div');
+            label.className = 'hour-label';
+            var displayHour = h % 12;
+            if (displayHour === 0) displayHour = 12;
+            var ampm = h >= 12 ? 'PM' : 'AM';
+            label.textContent = displayHour + ':00 ' + ampm;
+            var slot = document.createElement('div');
+            slot.className = 'hour-slot';
+            items.filter(function(e) {
+                var p = zonedParts(e.start);
+                return p.hour === h;
+            }).forEach(function(e) {
+                var card = document.createElement('div');
+                card.className = 'event-card';
+                var duration = e.stop ? (e.stop - e.start) : ((videosIndex[e.name] && videosIndex[e.name].duration) || 0);
+                var p = zonedParts(e.start);
+                var startMinutes = p.hour * 60 + p.minute;
+                var remainingMinutes = Math.max(0, (24 * 60) - startMinutes);
+                var durationMinutes = duration ? Math.min(remainingMinutes, Math.ceil(duration / 60000)) : 30;
+                var heightPx = Math.max(24, (durationMinutes / 60) * hourHeight);
+                var topPx = (p.minute / 60) * hourHeight;
+                card.style.top = topPx + 'px';
+                card.style.height = heightPx + 'px';
+                card.style.position = 'absolute';
+                card.style.left = '0';
+                card.style.right = '0';
+                card.style.zIndex = 2;
+                var rangeLabel = duration ? formatTimeRange(e.start, duration) : formatLocal(e.start);
+                card.textContent = e.name + ' - ' + rangeLabel;
+                card.setAttribute('draggable', 'true');
+                card.dataset.uuid = e._id;
+                card.addEventListener('dragstart', function(evt) {
+                    evt.dataTransfer.setData('text/plain', this.dataset.uuid);
+                });
+                card.addEventListener('dblclick', function() { remove_event(e._id); });
+                slot.appendChild(card);
+            });
+            row.appendChild(label);
+            row.appendChild(slot);
+            list.appendChild(row);
+        });
+        container.appendChild(list);
+    }
+
+    function renderWeekView(schedule) {
+        var container = document.getElementById('week-view');
+        if (!container) return;
+        container.innerHTML = '';
+        var baseRef = weekStartDate || new Date();
+        var baseParts = zonedParts(baseRef.getTime());
+        var baseDate = zonedDateTimeToUtc(baseParts.year, baseParts.month, baseParts.day, 12, 0, selectedTimeZone);
+        var base = new Date(baseDate);
+        var dayIdx = base.getUTCDay();
+        var sunday = new Date(baseDate - dayIdx * 24 * 3600 * 1000);
+        var days = [];
+        for (var i = 0; i < 7; i++) {
+            days.push(new Date(sunday.getTime() + i * 24 * 3600 * 1000));
+        }
+        var weekTitle = document.getElementById('week-title');
+        if (weekTitle) {
+            var end = new Date(sunday.getTime() + 6 * 24 * 3600 * 1000);
+            var startLabel = sunday.toLocaleDateString([], { timeZone: selectedTimeZone, month: 'short', day: 'numeric' });
+            var endLabel = end.toLocaleDateString([], { timeZone: selectedTimeZone, month: 'short', day: 'numeric' });
+            weekTitle.textContent = "Week view - " + startLabel + "-" + endLabel;
+        }
+        var columns = document.createElement('div');
+        columns.className = 'week-columns';
+        days.forEach(function(day) {
+            var parts = zonedParts(day.getTime());
+            var col = document.createElement('div');
+            col.className = 'week-col';
+            var head = document.createElement('div');
+            head.className = 'week-col-head';
+            head.textContent = new Date(day).toLocaleDateString([], { timeZone: selectedTimeZone, weekday: 'short', month: 'short', day: 'numeric' });
+            head.dataset.day = parts.year + '-' + parts.month + '-' + parts.day;
+            head.addEventListener('click', function() {
+                var d = this.dataset.day.split('-').map(function(v) { return parseInt(v); });
+                set_day_view(d[0], d[1], d[2]);
+            });
+            col.appendChild(head);
+            var body = document.createElement('div');
+            body.className = 'week-col-body';
+            body.addEventListener('dragover', function(evt) { evt.preventDefault(); });
+            body.addEventListener('drop', function(evt) {
+                evt.preventDefault();
+                var uuid = evt.dataTransfer.getData('text/plain');
+                if (!uuid) return;
+                var targetDay = this.dataset.day;
+                var parts = targetDay.split('-').map(function(v) { return parseInt(v); });
+                var newStart = zonedDateTimeToUtc(parts[0], parts[1], parts[2], 9, 0, selectedTimeZone);
+                reschedule_event(uuid, newStart);
+            });
+            body.dataset.day = parts.year + '-' + parts.month + '-' + parts.day;
+            schedule.forEach(function(e) {
+                var p = zonedParts(e.start);
+                if (p.year === parts.year && p.month === parts.month && p.day === parts.day) {
+                    var card = document.createElement('div');
+                    card.className = 'event-card';
+                    var duration = e.stop ? (e.stop - e.start) : ((videosIndex[e.name] && videosIndex[e.name].duration) || 0);
+                    var rangeLabel = duration ? formatTimeRange(e.start, duration) : formatLocal(e.start);
+                    card.textContent = rangeLabel + ' - ' + e.name;
+                    card.setAttribute('draggable', 'true');
+                    card.dataset.uuid = e._id;
+                    card.addEventListener('dragstart', function(evt) {
+                        evt.dataTransfer.setData('text/plain', this.dataset.uuid);
+                    });
+                    card.addEventListener('dblclick', function() { remove_event(e._id); });
+                    body.appendChild(card);
+                }
+            });
+            col.appendChild(body);
+            columns.appendChild(col);
+        });
+        container.appendChild(columns);
+    }
+
+    function renderMonthView(schedule) {
+        var container = document.getElementById('month-view');
+        if (!container) return;
+        container.innerHTML = '';
+        if (monthViewYear === null || monthViewMonth === null) {
+            setMonthViewToToday();
+        }
+        var year = monthViewYear;
+        var month = monthViewMonth;
+        var monthTitle = document.getElementById('month-title');
+        if (monthTitle) {
+            var monthLabel = new Date(Date.UTC(year, month - 1, 15, 12, 0)).toLocaleDateString([], { timeZone: selectedTimeZone, month: 'long', year: 'numeric' });
+            monthTitle.textContent = "Month view - " + monthLabel;
+        }
+        var firstDayUtc = zonedDateTimeToUtc(year, month, 1, 12, 0, selectedTimeZone);
+        var firstDay = new Date(firstDayUtc);
+        var startWeekday = firstDay.getUTCDay();
+        var daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        var grid = document.createElement('div');
+        grid.className = 'month-cells';
+        var day = 1;
+        for (var row = 0; row < 6; row++) {
+            for (var col = 0; col < 7; col++) {
+                var cell = document.createElement('div');
+                cell.className = 'month-cell';
+                if (row === 0 && col < startWeekday) {
+                    grid.appendChild(cell);
+                    continue;
+                }
+                if (day > daysInMonth) {
+                    grid.appendChild(cell);
+                    continue;
+                }
+                var label = document.createElement('div');
+                label.className = 'month-cell-label';
+                label.textContent = day;
+                cell.appendChild(label);
+                var list = document.createElement('div');
+                list.className = 'month-cell-list';
+                schedule.forEach(function(e) {
+                    var p = zonedParts(e.start);
+                    if (p.year === year && p.month === month && p.day === day) {
+                        var dot = document.createElement('div');
+                        dot.className = 'event-dot';
+                        dot.title = formatLocal(e.start) + ' - ' + e.name;
+                        list.appendChild(dot);
+                    }
+                });
+                cell.appendChild(list);
+                cell.dataset.day = day;
+                cell.addEventListener('click', function() {
+                    set_day_view(year, month, parseInt(this.dataset.day));
+                });
+                grid.appendChild(cell);
+                day++;
+            }
+        }
+        container.appendChild(grid);
+    }
+
+    function set_active_view(view) {
+        var tabs = document.querySelectorAll('.tab-btn');
+        tabs.forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.view === view);
+        });
+        document.querySelectorAll('.view-panel').forEach(function(panel) {
+            if (panel.getAttribute('data-view-panel') === view) {
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
+        });
+        if (view === 'month') {
+            setMonthViewToToday();
+            renderMonthView(schedule_data);
+        }
+        if (view === 'day') {
+            dayViewDate = getZonedToday();
+            renderDayView(schedule_data);
+        }
+        if (view === 'week') {
+            weekStartDate = getZonedToday();
+            renderWeekView(schedule_data);
+        }
+    }
+
+    function set_day_view(year, month, day) {
+        dayViewDate = new Date(year, month - 1, day);
+        renderDayView(schedule_data);
+        set_active_view('day');
+    }
+
+    function wireViewTabs() {
+        var tabs = document.querySelectorAll('.tab-btn');
+        tabs.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (btn.dataset.view === 'month') {
+                    setMonthViewToToday();
+                }
+                if (btn.dataset.view === 'week') {
+                    weekStartDate = getZonedToday();
+                }
+                if (btn.dataset.view === 'day') {
+                    dayViewDate = getZonedToday();
+                }
+                set_active_view(btn.dataset.view);
+            });
+        });
+    }
+
+    populateTimezones();
+    wireViewTabs();
+    dayViewDate = new Date();
+    weekStartDate = new Date();
+    set_active_view('timeline');
+    renderCalendarViews(schedule_data);
+
+
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+

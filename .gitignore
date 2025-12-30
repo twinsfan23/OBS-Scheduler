@@ -1,0 +1,15 @@
+# User-specific files
+
+*.war
+*.props
+*.exe
+
+# Build results
+obs-thrift-api/obs-thrift-api/bin
+obs-thrift-api/obs-thrift-api/build
+.vs
+
+obs-thrift-api/tests/obsthriftserver/__pycache__
+
+obs-video-scheduler/.settings
+obs-video-scheduler/target
