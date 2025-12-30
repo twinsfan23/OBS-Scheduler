@@ -8,7 +8,6 @@ Python + web application that enables scheduling of pre-recorded video playbacks
 
 Currently two interfaces are supported:
 - web interface for schedule management and settings (http://localhost:8080)
-- web interface with upcoming video announcements (http://localhost:8080/comm) that can be used by commentators or broadcast director
 
 ## Installation and usage
 Currently the only supported platform is Windows and 64-bit OBS. It's likely that it can be easily ported to other platforms.

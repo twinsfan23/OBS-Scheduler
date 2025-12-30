@@ -20,7 +20,7 @@ The scheduler runs plugin-free using obs-websocket (no Java/Tomcat, no custom OB
 1) Run OBS.
 2) Run the Python API as above.
 3) Open http://localhost:8080/. The UI polls `/CurrentState`, `/ContestState`, `/VideoList`, and `/ScheduleGet` from the Python service.
-4) Schedule videos via the UI, drag to adjust, double-click to remove. `/comm` still shows upcoming content.
+4) Schedule videos via the UI, drag to adjust, double-click to remove.
 
 ## Settings (config.json)
 | Property | Default value | Description |
