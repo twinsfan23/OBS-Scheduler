@@ -1,6 +1,6 @@
 ## Python replacement backend (FastAPI)
 
-This service replaces the Java/Tomcat servlets with a FastAPI app and talks to OBS directly via obs-websocket (no Node gateway required). Endpoints mirror the original servlet paths so the existing frontend keeps working.
+This service provides the FastAPI backend and talks to OBS directly via obs-websocket. Endpoints mirror the original servlet paths so the existing frontend keeps working.
 
 ### Run
 ```bash
@@ -29,9 +29,8 @@ Then open http://localhost:8080/index.html (static assets are mounted from `obs-
 - Uses obsws-python (OBS websocket v5). Configure host/port/password/scene/layer via env vars above.
 
 ### Data layout
-- Uses the same `data/` files as the Java app (`filelist.txt`, `alist.txt`, `schedule.json`, `timestamp`, `schedules/`, `config.json`). If they don’t exist, create them or copy from your existing deployment.
+- Uses the same JSON files (`filelist.txt`, `alist.txt`, `schedule.json`, `timestamp`, `schedules/`, `config.json`). The installer creates these under your chosen data directory (default `C:\scheduler`).
 
 ### Next steps
 - Confirm the data directory has the expected files and durations in milliseconds.
 - Align disclaimer/transition logic if you rely on it (currently the Python loop plays raw media without disclaimer overlays).
-- Once validated, you can stop running Tomcat; the FastAPI server replaces it.***

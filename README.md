@@ -4,24 +4,11 @@ Library and web application for managing pre-recorded videos playbacks in [Open 
 
 ## obs-video-scheduler
 
-Tomcat web application that enables scheduling of pre-recorded videos playbacks during OBS broadcast and creating a video plan ahead of the broadcast. Scheduled videos will automatically start in the correct layer.
+Python + web application that enables scheduling of pre-recorded video playbacks during OBS broadcasts. Scheduled videos automatically start in the configured scene/layer via obs-websocket.
 
 Currently two interfaces are supported:
 - web interface for schedule management and settings (http://localhost:8080)
 - web interface with upcoming video announcements (http://localhost:8080/comm) that can be used by commentators or broadcast director
-
-## obs-thrift-api
-
-OBS plugin for integrating the web application with OBS.
-
-Plugin exposes certain OBS functionality via [Thrift](https://thrift.apache.org/) - cross-language services development framework.
-
-Functionality supported currently:
-- adding media source to OBS scene
-- removing media source from OBS
-- muting/unmuting sources
-
-For full API details see [thrift file](obs_thrift_server.thrift).
 
 ## Installation and usage
 Currently the only supported platform is Windows and 64-bit OBS. It's likely that it can be easily ported to other platforms.

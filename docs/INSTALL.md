@@ -1,44 +1,26 @@
 ## Overview
-The scheduler can now run plugin-free using obs-websocket (no Java/Tomcat, no custom OBS plugin). Keep OBS in normal mode (not Studio) with obs-websocket enabled.
+The scheduler runs plugin-free using obs-websocket (no Java/Tomcat, no custom OBS plugin). Keep OBS in normal mode (not Studio) with obs-websocket enabled.
 
 ## Requirements
 - Windows
 - OBS 28+ with obs-websocket enabled (Tools → WebSocket Server Settings)
 - Python 3.10+ (for FastAPI backend)
-- ffmpeg on PATH (recommended for media handling)
+- ffmpeg/ffprobe on PATH (recommended for media handling)
 - Browser
 
-## Install (plugin-free path, all Python)
-1) Clone or unzip the repo to a folder, e.g. `C:\obs-video-scheduler-master`.
-2) Prepare `data/` (copy from your existing install if you have one):
-   - `data/filelist.txt` (JSON array of videos)
-   - `data/alist.txt` (JSON array of activities)
-   - `data/schedule.json` (JSON array; can be empty `[]`)
-   - `data/timestamp` (epoch ms for contest start; can be current time)
-   - `data/schedules/` directory (for saved schedules)
-   - `data/config.json` (scene, layer, video dirs; see Settings below)
+## Install (Windows, Python)
+1) Download `install-python.ps1` from the repo.
+2) Run it in PowerShell (it prompts for the install folder; default is `C:\scheduler`).
 3) Start OBS and enable obs-websocket (note the port/password).
-4) Start Scheduler API + UI (Python):
-   ```powershell
-   cd obs-scheduler-api
-   python -m venv .venv
-   .\.venv\Scripts\activate
-   pip install -r requirements.txt
-   $env:OBS_HOST="127.0.0.1"
-   $env:OBS_PORT="4455"
-   $env:OBS_PASSWORD="your_password"
-   $env:OBS_SCENE="Scene 1"
-   $env:OBS_LAYER="1"
-   $env:OBS_SOURCES_TO_MUTE="Mic/Aux,Desktop Audio"
-   uvicorn app:app --port 8080
-   ```
-5) Open http://localhost:8080/index.html. The existing UI should function against the new Python backend.
+4) Edit `run-python.bat` in your install folder for OBS host/port/password/scene/layer if needed.
+5) Run `run-python.bat`.
+6) Open http://localhost:8080/.
 
 ## Usage
 1) Run OBS.
 2) Run the Python API as above.
 3) Open http://localhost:8080/. The UI polls `/CurrentState`, `/ContestState`, `/VideoList`, and `/ScheduleGet` from the Python service.
-4) Schedule videos via the UI, drag to adjust, double-click to remove, use “Start now” or reschedule time to set contest start. `/comm` still shows upcoming content.
+4) Schedule videos via the UI, drag to adjust, double-click to remove. `/comm` still shows upcoming content.
 
 ## Settings (config.json)
 | Property | Default value | Description |
@@ -48,13 +30,13 @@ The scheduler can now run plugin-free using obs-websocket (no Java/Tomcat, no cu
 | obs-host | `localhost` | Kept for compatibility (not used by websocket path) |
 | scene-name | `Scene1` | Target scene in OBS |
 | source-layer | `0` | Layer index for injected media |
-| video-top-margin | `0` | Positioning (px or percent as used by UI) |
-| video-left-margin | `0` | Positioning |
-| video-width | `100` | Percent |
-| video-height | `100` | Percent |
+| source-left-margin | `0` | Positioning (px) |
+| source-top-margin | `0` | Positioning (px) |
+| source-relative-width | `1` | Relative width (0-1) |
+| source-relative-height | `1` | Relative height (0-1) |
 | sources-to-mute | `[]` | Inputs to mute while playing |
-| disclaimer-file-name | *(unused here)* | Ignored if empty |
-| disclaimer-transition-time | *(unused here)* | Ignored if empty |
-
-## Legacy install (Java/Tomcat + Thrift plugin)
-Still in the repo if you need it; requires JDK/JRE, Tomcat, and obs-thrift-api.dll. Prefer the plugin-free path above for new setups.***
+| audio-monitor-sources | `""` | Audio inputs to set monitor mode |
+| audio-monitor-prefix | `Scheduler:` | Audio input prefix to match |
+| audio-monitor-mode | `monitor_and_output` | Audio monitor mode |
+| idle-scene-enabled | `false` | Switch to idle scene when nothing plays |
+| idle-scene-name | `Slides` | Idle scene name |
