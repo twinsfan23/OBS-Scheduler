@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, Response, HTTPException
+from fastapi import FastAPI, Query, Response, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from uuid import uuid4
@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import shutil
 from datetime import datetime
+import os
 
 import data_provider as dp
 from scheduler_loop import PlaybackLoop
@@ -35,13 +36,38 @@ def _html_table(headers, rows):
     return "\n".join(html)
 
 
+def _expected_api_key() -> str | None:
+    env_key = os.getenv("OBS_API_KEY")
+    if env_key:
+        return env_key
+    return dp.get_config().get("api-key")
+
+
+def _require_api_key(request: Request, allow_if_unset: bool = False) -> None:
+    expected = _expected_api_key()
+    if not expected:
+        if allow_if_unset:
+            return
+        return
+    supplied = request.headers.get("X-OBS-API-KEY") or request.query_params.get("api_key")
+    if supplied != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def _validate_safe_name(value: str, field: str) -> None:
+    if any(token in value for token in ("..", "/", "\\", ":")):
+        raise HTTPException(status_code=400, detail=f"{field} contains invalid characters")
+
+
 @app.get("/ScheduleGet")
-def schedule_get():
+def schedule_get(request: Request):
+    _require_api_key(request)
     return JSONResponse(dp.as_schedule_payload())
 
 
 @app.get("/ScheduleList")
-def schedule_list():
+def schedule_list(request: Request):
+    _require_api_key(request)
     files = dp.get_schedule_list()
     options = "".join([f'<option value="{f}">{f}</option>' for f in files])
     html = (
@@ -53,13 +79,17 @@ def schedule_list():
 
 
 @app.get("/SaveSchedule")
-def save_schedule(file: str = Query(..., alias="file")):
+def save_schedule(request: Request, file: str = Query(..., alias="file")):
+    _require_api_key(request)
+    _validate_safe_name(file, "Schedule name")
     dp.save_schedule(file)
     return Response(status_code=204)
 
 
 @app.get("/LoadSchedule")
-def load_schedule(file: str = Query(..., alias="file")):
+def load_schedule(request: Request, file: str = Query(..., alias="file")):
+    _require_api_key(request)
+    _validate_safe_name(file, "Schedule name")
     try:
         dp.load_schedule(file)
     except FileNotFoundError:
@@ -68,7 +98,8 @@ def load_schedule(file: str = Query(..., alias="file")):
 
 
 @app.get("/AddScheduleEntry")
-def add_schedule_entry(uuid: str = Query(...)):
+def add_schedule_entry(request: Request, uuid: str = Query(...)):
+    _require_api_key(request)
     items_by_uuid = dp.get_all_items_by_name()
     all_items_uuid = {}
     videos_uuid = dp.get_videos()[1]
@@ -98,7 +129,8 @@ def add_schedule_entry(uuid: str = Query(...)):
 
 
 @app.get("/RemoveScheduleEntry")
-def remove_schedule_entry(uuid: str = Query(...)):
+def remove_schedule_entry(request: Request, uuid: str = Query(...)):
+    _require_api_key(request)
     schedule = dp.get_schedule()
     schedule = [e for e in schedule if e["uuid"] != uuid]
     dp.write_schedule(schedule)
@@ -106,7 +138,8 @@ def remove_schedule_entry(uuid: str = Query(...)):
 
 
 @app.get("/DeleteVideo")
-def delete_video(uuid: str = Query(...)):
+def delete_video(request: Request, uuid: str = Query(...)):
+    _require_api_key(request)
     videos_by_name, videos_by_uuid = dp.get_videos()
     item = videos_by_uuid.get(uuid)
     if not item:
@@ -120,7 +153,8 @@ def delete_video(uuid: str = Query(...)):
 
 
 @app.get("/ArchiveVideo")
-def archive_video(uuid: str = Query(...)):
+def archive_video(request: Request, uuid: str = Query(...)):
+    _require_api_key(request)
     videos_by_name, videos_by_uuid = dp.get_videos()
     item = videos_by_uuid.get(uuid)
     if not item:
@@ -154,10 +188,12 @@ def archive_video(uuid: str = Query(...)):
 
 
 @app.get("/RenameVideo")
-def rename_video(uuid: str = Query(...), name: str = Query(...)):
+def rename_video(request: Request, uuid: str = Query(...), name: str = Query(...)):
+    _require_api_key(request)
     new_name = name.strip()
     if not new_name:
         raise HTTPException(status_code=400, detail="New name is required")
+    _validate_safe_name(new_name, "Video name")
     videos_by_name, videos_by_uuid = dp.get_videos()
     item = videos_by_uuid.get(uuid)
     if not item:
@@ -192,7 +228,8 @@ def rename_video(uuid: str = Query(...), name: str = Query(...)):
 
 
 @app.get("/RescheduleScheduleEntry")
-def reschedule_schedule_entry(uuid: str = Query(...), start: int = Query(...)):
+def reschedule_schedule_entry(request: Request, uuid: str = Query(...), start: int = Query(...)):
+    _require_api_key(request)
     schedule = dp.get_schedule()
     changed = False
     for entry in schedule:
@@ -207,7 +244,8 @@ def reschedule_schedule_entry(uuid: str = Query(...), start: int = Query(...)):
 
 
 @app.get("/StartContest")
-def start_contest(time: str | None = Query(None)):
+def start_contest(request: Request, time: str | None = Query(None)):
+    _require_api_key(request)
     if time:
         h, m = time.split("-")
         now = datetime.now()
@@ -219,7 +257,8 @@ def start_contest(time: str | None = Query(None)):
 
 
 @app.get("/AddActivity")
-def add_activity(name: str, duration: str):
+def add_activity(request: Request, name: str, duration: str):
+    _require_api_key(request)
     if "-" in duration:
         mins, secs = duration.split("-")
         dur_ms = int(mins) * 60000 + int(secs) * 1000
@@ -240,7 +279,8 @@ def add_activity(name: str, duration: str):
 
 
 @app.get("/VideoList")
-def video_list(type: str = "video"):
+def video_list(request: Request, type: str = "video"):
+    _require_api_key(request)
     if type == "video":
         items_by_name, _ = dp.get_videos()
     else:
@@ -302,7 +342,8 @@ def video_list(type: str = "video"):
 
 
 @app.get("/VideoListJson")
-def video_list_json(type: str = "video"):
+def video_list_json(request: Request, type: str = "video"):
+    _require_api_key(request)
     if type == "video":
         items_by_name, _ = dp.get_videos()
     else:
@@ -312,7 +353,8 @@ def video_list_json(type: str = "video"):
 
 
 @app.get("/CurrentState")
-def current_state():
+def current_state(request: Request):
+    _require_api_key(request)
     items = dp.get_all_items_by_name()
     schedule = dp.get_schedule()
     now = dp.current_time_ms()
@@ -333,7 +375,8 @@ def current_state():
     return HTMLResponse("".join(lines))
 
 @app.get("/CurrentStateJson")
-def current_state_json():
+def current_state_json(request: Request):
+    _require_api_key(request)
     items = dp.get_all_items_by_name()
     schedule = dp.get_schedule()
     now = dp.current_time_ms()
@@ -374,7 +417,8 @@ def current_state_json():
 
 
 @app.get("/ContestState")
-def contest_state():
+def contest_state(request: Request):
+    _require_api_key(request)
     contest_time = dp.get_contest_start()
     current_time = dp.current_time_ms()
     d = abs(contest_time - current_time)
@@ -390,7 +434,8 @@ def contest_state():
     return HTMLResponse(html)
 
 @app.get("/ContestStateJson")
-def contest_state_json():
+def contest_state_json(request: Request):
+    _require_api_key(request)
     contest_time = dp.get_contest_start()
     current_time = dp.current_time_ms()
     d = abs(contest_time - current_time)
@@ -403,7 +448,8 @@ def contest_state_json():
     })
 
 @app.get("/OBSStatus.jsp")
-def obs_status():
+def obs_status(request: Request):
+    _require_api_key(request)
     try:
         status = heartbeat()
         return HTMLResponse(f"<html>Connected to OBS (Scene: {status.get('scene', 'unknown')})</html>")
@@ -412,7 +458,8 @@ def obs_status():
 
 
 @app.post("/StartStreaming")
-def start_stream():
+def start_stream(request: Request):
+    _require_api_key(request)
     try:
         start_streaming()
         return JSONResponse({"ok": True})
@@ -421,7 +468,8 @@ def start_stream():
 
 
 @app.post("/StopStreaming")
-def stop_stream():
+def stop_stream(request: Request):
+    _require_api_key(request)
     try:
         stop_streaming()
         return JSONResponse({"ok": True})
@@ -430,7 +478,8 @@ def stop_stream():
 
 
 @app.post("/ApplyAudioMonitoring")
-def apply_audio_monitoring_endpoint():
+def apply_audio_monitoring_endpoint(request: Request):
+    _require_api_key(request)
     try:
         result = apply_audio_monitoring()
         return JSONResponse({"ok": True, "applied": result.get("applied", []), "failed": result.get("failed", [])})
@@ -439,7 +488,8 @@ def apply_audio_monitoring_endpoint():
 
 
 @app.get("/StreamStatus")
-def stream_status():
+def stream_status(request: Request):
+    _require_api_key(request)
     try:
         return JSONResponse({"active": bool(get_stream_status())})
     except Exception as exc:
@@ -448,17 +498,20 @@ def stream_status():
 
 
 @app.get("/ScheduleGetJson")
-def schedule_get_json():
+def schedule_get_json(request: Request):
+    _require_api_key(request)
     return JSONResponse(dp.get_schedule())
 
 
 @app.get("/SettingsGet")
-def settings_get():
+def settings_get(request: Request):
+    _require_api_key(request)
     return JSONResponse(dp.get_config())
 
 
 @app.post("/SettingsUpdate")
-def settings_update(payload: dict):
+def settings_update(request: Request, payload: dict):
+    _require_api_key(request, allow_if_unset=True)
     current = dp.get_config()
     current.update(payload)
     dp.write_config(current)
@@ -466,14 +519,16 @@ def settings_update(payload: dict):
 
 
 @app.post("/RefreshVideos")
-def refresh_videos():
+def refresh_videos(request: Request):
+    _require_api_key(request)
     dp.refresh_videos_if_needed(force=True, rebuild=True)
     ffprobe_path = dp.get_ffprobe_path()
     return JSONResponse({"ok": True, "ffprobe": bool(ffprobe_path), "ffprobe_path": ffprobe_path})
 
 
 @app.post("/BulkSchedule")
-def bulk_schedule(payload: dict):
+def bulk_schedule(request: Request, payload: dict):
+    _require_api_key(request)
     entries = payload.get("entries", [])
     mode = payload.get("mode", "skip")
     items = dp.get_all_items_by_name()
@@ -564,8 +619,6 @@ if static_dir.exists():
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
 # Override data directory via env (for C:\scheduler)
-import os
-import data_provider as dp
 custom_data = os.getenv("SCHEDULER_DATA")
 if custom_data:
     dp.set_data_root(custom_data)

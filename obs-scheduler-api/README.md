@@ -27,6 +27,7 @@ Then open http://localhost:8080/index.html (static assets are mounted from `obs-
 
 ### OBS control
 - Uses obsws-python (OBS websocket v5). Configure host/port/password/scene/layer via env vars above.
+- API access can be protected with `api-key` in `config.json` or `OBS_API_KEY` env var.
 
 ### Data layout
 - Uses the same JSON files (`filelist.txt`, `alist.txt`, `schedule.json`, `timestamp`, `schedules/`, `config.json`). The installer creates these under your chosen data directory (default `C:\scheduler`).

@@ -14,7 +14,7 @@ The scheduler runs plugin-free using obs-websocket (no Java/Tomcat, no custom OB
 3) Start OBS and enable obs-websocket (note the port/password).
 4) Edit `run-python.bat` in your install folder for OBS host/port/password/scene/layer if needed.
 5) Run `run-python.bat`.
-6) Open http://localhost:8080/.
+6) Open http://localhost:8080/. When prompted, enter the API key from `C:\scheduler\api-key.txt` (or your install folder).
 
 ## Usage
 1) Run OBS.
@@ -39,6 +39,7 @@ This runs `run-python.bat` hidden and appends a simple log line to `C:\scheduler
 ## Settings (config.json)
 | Property | Default value | Description |
 |-|-|-|
+| api-key | *(generated)* | API key required for API access |
 | server-video-dir | `C:/videos/` | Path where the scheduler reads media filenames |
 | obs-video-dir | `C:/videos/` | Path OBS should load media from (usually same as above) |
 | obs-host | `localhost` | Kept for compatibility (not used by websocket path) |

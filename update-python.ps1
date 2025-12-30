@@ -15,6 +15,28 @@ if (-not (Test-Path $appDir)) {
     exit 1
 }
 
+$configPath = Join-Path $dataDir "config.json"
+$apiKeyPath = Join-Path $dataDir "api-key.txt"
+if (-not (Test-Path $configPath)) {
+    Write-Error "Missing config.json at $configPath. Run install-python.ps1 first."
+    exit 1
+}
+try {
+    $configJson = Get-Content -Path $configPath -Raw -ErrorAction Stop | ConvertFrom-Json
+} catch {
+    $configJson = $null
+}
+if (-not $configJson) {
+    $configJson = New-Object psobject
+}
+if (-not $configJson.PSObject.Properties.Name.Contains("api-key") -or -not $configJson."api-key") {
+    $newKey = [Guid]::NewGuid().ToString("N")
+    $configJson | Add-Member -NotePropertyName "api-key" -NotePropertyValue $newKey -Force
+    $configJson | ConvertTo-Json -Depth 6 | Set-Content -Path $configPath -Encoding utf8
+    $newKey | Set-Content -Path $apiKeyPath -Encoding ascii
+    Write-Host "Generated API key and saved to $apiKeyPath"
+}
+
 $sourceChoice = Read-Host "Update source? [1] GitHub download (default), [2] Local folder, [3] Offline zip"
 if ([string]::IsNullOrWhiteSpace($sourceChoice)) {
     $sourceChoice = "1"

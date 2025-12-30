@@ -124,8 +124,12 @@ Ensure-JsonFile (Join-Path $dataDir "schedule.json") "[]"
 if (-not (Test-Path (Join-Path $dataDir "timestamp"))) {
     Write-TextNoBom (Join-Path $dataDir "timestamp") ([string]([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()))
 }
-Ensure-JsonFile (Join-Path $dataDir "config.json") @'
+$configPath = Join-Path $dataDir "config.json"
+if (-not (Test-Path $configPath)) {
+    $apiKey = [Guid]::NewGuid().ToString("N")
+    $configJson = @"
 {
+  "api-key": "$apiKey",
   "server-video-dir": "C:/videos/",
   "obs-video-dir": "C:/videos/",
   "scene-name": "Scene 1",
@@ -144,7 +148,14 @@ Ensure-JsonFile (Join-Path $dataDir "config.json") @'
   "disclaimer-file-name": "",
   "disclaimer-transition-time": "0"
 }
-'@
+"@
+    Write-Host "Creating $configPath"
+    Write-TextNoBom $configPath $configJson
+    Write-Host "Writing API key to $(Join-Path $dataDir "api-key.txt")"
+    Write-TextNoBom (Join-Path $dataDir "api-key.txt") $apiKey
+} else {
+    Ensure-JsonFile $configPath "{}"
+}
 
 Normalize-TextFile (Join-Path $dataDir "filelist.txt")
 Normalize-TextFile (Join-Path $dataDir "alist.txt")
@@ -182,4 +193,5 @@ Write-Host ""
 Write-Host "Install complete."
 Write-Host "1) Open OBS and enable obs-websocket (note port/password)."
 Write-Host "2) Edit run-python.bat env vars if needed (OBS_HOST/PORT/PASSWORD/SCENE/LAYER)."
-Write-Host "3) Launch with run-python.bat (at repo root or copied to $dataDir)"
+Write-Host "3) Your API key is saved in $(Join-Path $dataDir "api-key.txt")."
+Write-Host "4) Launch with run-python.bat (at repo root or copied to $dataDir)"

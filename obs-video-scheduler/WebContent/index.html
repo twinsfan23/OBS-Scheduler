@@ -163,6 +163,10 @@
         </div>
         <div class="file-grid">
             <div class="control-block">
+                <label for="api-key">API key</label>
+                <input type="password" id="api-key" placeholder="Set an API key" autocomplete="off"/>
+            </div>
+            <div class="control-block">
                 <label for="obs-password">OBS websocket password</label>
                 <input type="password" id="obs-password" placeholder="password" autocomplete="off"/>
             </div>
@@ -247,10 +251,22 @@
     {
         var xmlHttp = new XMLHttpRequest();
         xmlHttp.onreadystatechange = function() { 
-            if (xmlHttp.readyState == 4 && xmlHttp.status == 200 && callback)
+            if (xmlHttp.readyState != 4) {
+                return;
+            }
+            if (xmlHttp.status == 200 && callback) {
                 callback(xmlHttp.responseText);
+                return;
+            }
+            if (xmlHttp.status == 401 && !apiKeyWarningShown) {
+                apiKeyWarningShown = true;
+                alert('API key missing or invalid. Update it in Settings.');
+            }
         }
         xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+        if (apiKey) {
+            xmlHttp.setRequestHeader("X-OBS-API-KEY", apiKey);
+        }
         xmlHttp.send(null);
     }   
     
@@ -295,11 +311,19 @@
             }
             if (xmlHttp.status >= 200 && xmlHttp.status < 300) {
                 if (onSuccess) onSuccess(xmlHttp.responseText);
+            } else if (xmlHttp.status === 401) {
+                if (!apiKeyWarningShown) {
+                    apiKeyWarningShown = true;
+                    alert('API key missing or invalid. Update it in Settings.');
+                }
             } else if (onError) {
                 onError(xmlHttp);
             }
         };
         xmlHttp.open("GET", theUrl, true);
+        if (apiKey) {
+            xmlHttp.setRequestHeader("X-OBS-API-KEY", apiKey);
+        }
         xmlHttp.send(null);
     }
 
@@ -337,6 +361,7 @@
         httpGetAsync('/SettingsGet', function(text) {
             try {
                 var data = JSON.parse(text);
+                var apiKeyInput = document.getElementById('api-key');
                 var obsPass = document.getElementById('obs-password');
                 var obsScene = document.getElementById('obs-scene');
                 var idleSceneEnabled = document.getElementById('idle-scene-enabled');
@@ -352,6 +377,7 @@
                 var videoDir = document.getElementById('video-dir');
                 var archiveDir = document.getElementById('archive-dir');
                 var ffprobePath = document.getElementById('ffprobe-path');
+                if (apiKeyInput) apiKeyInput.value = apiKey || "";
                 if (obsPass) obsPass.value = data["obs-password"] || "";
                 if (obsScene) obsScene.value = data["scene-name"] || data["obs-scene"] || "";
                 if (idleSceneEnabled) idleSceneEnabled.checked = !!data["idle-scene-enabled"];
@@ -373,6 +399,7 @@
     }
 
     function save_settings() {
+        var apiKeyInput = document.getElementById('api-key');
         var obsPass = document.getElementById('obs-password');
         var obsScene = document.getElementById('obs-scene');
         var idleSceneEnabled = document.getElementById('idle-scene-enabled');
@@ -388,6 +415,10 @@
         var videoDir = document.getElementById('video-dir');
         var archiveDir = document.getElementById('archive-dir');
         var ffprobePath = document.getElementById('ffprobe-path');
+        if (apiKeyInput && apiKeyInput.value) {
+            apiKey = apiKeyInput.value;
+            localStorage.setItem('obsSchedulerApiKey', apiKey);
+        }
         var payload = {
             "obs-password": obsPass ? obsPass.value : "",
             "scene-name": obsScene ? obsScene.value : "",
@@ -408,13 +439,16 @@
             "archive-dir": archiveDir ? archiveDir.value : "",
             "ffprobe-path": ffprobePath ? ffprobePath.value : ""
         };
+        if (apiKeyInput && apiKeyInput.value) {
+            payload["api-key"] = apiKeyInput.value;
+        }
         fetch('/SettingsUpdate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, apiKey ? { 'X-OBS-API-KEY': apiKey } : {}),
             body: JSON.stringify(payload)
         }).then(function() {
             refresh_videos();
-            return fetch('/ApplyAudioMonitoring', { method: 'POST' });
+            return fetch('/ApplyAudioMonitoring', { method: 'POST', headers: apiKey ? { 'X-OBS-API-KEY': apiKey } : {} });
         }).then(function(response) {
             if (!response) return null;
             return response.json();
@@ -425,7 +459,7 @@
     }
 
     function refresh_videos() {
-        fetch('/RefreshVideos', { method: 'POST' }).then(function(response) {
+        fetch('/RefreshVideos', { method: 'POST', headers: apiKey ? { 'X-OBS-API-KEY': apiKey } : {} }).then(function(response) {
             return response.json();
         }).then(function(data) {
             if (data && data.ffprobe === false) {
@@ -437,17 +471,25 @@
     }
 
     function start_streaming() {
-        fetch('/StartStreaming', { method: 'POST' });
+        fetch('/StartStreaming', { method: 'POST', headers: apiKey ? { 'X-OBS-API-KEY': apiKey } : {} });
     }
 
     function stop_streaming() {
-        fetch('/StopStreaming', { method: 'POST' });
+        fetch('/StopStreaming', { method: 'POST', headers: apiKey ? { 'X-OBS-API-KEY': apiKey } : {} });
     }
 
     function update_stream_status() {
-        fetch('/StreamStatus').then(function(response) {
+        fetch('/StreamStatus', { headers: apiKey ? { 'X-OBS-API-KEY': apiKey } : {} }).then(function(response) {
+            if (response.status === 401) {
+                if (!apiKeyWarningShown) {
+                    apiKeyWarningShown = true;
+                    alert('API key missing or invalid. Update it in Settings.');
+                }
+                return null;
+            }
             return response.json();
         }).then(function(data) {
+            if (!data) return;
             var control = document.querySelector('.streaming-control');
             var statusText = document.getElementById('stream-status-text');
             var active = data && data.active;
@@ -463,7 +505,7 @@
     }
 
     function load_video_options() {
-        fetch('/VideoListJson?type=video').then(function(response) {
+        fetch('/VideoListJson?type=video', { headers: apiKey ? { 'X-OBS-API-KEY': apiKey } : {} }).then(function(response) {
             return response.json();
         }).then(function(items) {
             var select = document.getElementById('recurring-video');
@@ -633,6 +675,8 @@
     var contest_timestamp_ = 0;
     var schedule_data = [];
     var selectedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    var apiKey = localStorage.getItem('obsSchedulerApiKey') || '';
+    var apiKeyWarningShown = false;
     var currentStateData = null;
     var contestStateData = null;
     var currentHoursPerRuler = 8;
@@ -642,6 +686,14 @@
     var monthViewYear = null;
     var monthViewMonth = null;
     var followNow = true;
+
+    if (!apiKey) {
+        var enteredKey = prompt('Enter API key from your scheduler install folder (api-key.txt):');
+        if (enteredKey) {
+            apiKey = enteredKey;
+            localStorage.setItem('obsSchedulerApiKey', apiKey);
+        }
+    }
     
     
     var update_schedule = function() {
@@ -1101,7 +1153,7 @@
         }
         fetch('/BulkSchedule', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, apiKey ? { 'X-OBS-API-KEY': apiKey } : {}),
             body: JSON.stringify({ entries: entries, mode: mode })
         }).then(function(response) {
             return response.json();
