@@ -27,8 +27,7 @@ def _html_table(headers, rows):
         html.append(f"<td>{h}</td>")
     html.append("</tr>")
     for idx, row in enumerate(rows):
-        bgcolor = "" if idx % 2 == 0 else " bgcolor=\"#CCCCCC\""
-        html.append(f"<tr{bgcolor}>")
+        html.append("<tr>")
         for cell in row:
             html.append(f"<td>{cell}</td>")
         html.append("</tr>")
