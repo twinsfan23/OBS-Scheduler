@@ -168,17 +168,15 @@ def archive_video(request: Request, uuid: str = Query(...)):
     archive_path.mkdir(parents=True, exist_ok=True)
     target = archive_path / source_path.name
     if target.exists():
-        stem = target.stem
-        suffix = target.suffix
-        idx = 1
-        while True:
-            candidate = archive_path / f"{stem} ({idx}){suffix}"
-            if not candidate.exists():
-                target = candidate
-                break
-            idx += 1
+        raise HTTPException(status_code=409, detail="Archive target already exists")
     if source_path.exists():
-        shutil.move(str(source_path), str(target))
+        try:
+            shutil.move(str(source_path), str(target))
+        except PermissionError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail="Video is in use and cannot be archived right now",
+            ) from exc
     remaining = [v for v in videos_by_name.values() if v["uuid"] != uuid]
     dp.write_videos(remaining)
     schedule = [e for e in dp.get_schedule() if e["name"] != item["name"]]
@@ -189,21 +187,30 @@ def archive_video(request: Request, uuid: str = Query(...)):
 @app.get("/RenameVideo")
 def rename_video(request: Request, uuid: str = Query(...), name: str = Query(...)):
     _require_api_key(request)
-    new_name = name.strip()
-    if not new_name:
+    requested_name = name.strip()
+    if not requested_name:
         raise HTTPException(status_code=400, detail="New name is required")
-    _validate_safe_name(new_name, "Video name")
     videos_by_name, videos_by_uuid = dp.get_videos()
     item = videos_by_uuid.get(uuid)
     if not item:
         raise HTTPException(status_code=404, detail="Video not found")
+    source_name = item["name"]
+    source_suffix = Path(source_name).suffix
+    base_name = requested_name
+    if source_suffix and base_name.lower().endswith(source_suffix.lower()):
+        base_name = base_name[: -len(source_suffix)]
+    base_name = base_name.strip()
+    if not base_name:
+        raise HTTPException(status_code=400, detail="New name is required")
+    _validate_safe_name(base_name, "Video name")
+    new_name = f"{base_name}{source_suffix}"
     if new_name in videos_by_name and videos_by_name[new_name]["uuid"] != uuid:
         raise HTTPException(status_code=400, detail="A video with that name already exists")
     config = dp.get_config()
     video_dir = config.get("server-video-dir") or config.get("obs-video-dir")
     if not video_dir:
         raise HTTPException(status_code=400, detail="Video directory not set")
-    source_path = Path(video_dir) / item["name"]
+    source_path = Path(video_dir) / source_name
     target_path = Path(video_dir) / new_name
     if target_path.exists():
         raise HTTPException(status_code=400, detail="Target file already exists")

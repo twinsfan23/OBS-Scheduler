@@ -54,7 +54,6 @@ class PlaybackLoop:
                 continue
             start = entry["start_timestamp"]
             stop_ts = start + item["duration"]
-            has_next = idx < len(schedule) - 1 and stop_ts == schedule[idx + 1]["start_timestamp"]
             media_path = str(media_root / entry["name"])
             if self.current_uuid == entry["uuid"]:
                 found_current = True
@@ -70,7 +69,7 @@ class PlaybackLoop:
 
             if self.current_uuid == entry["uuid"] and now >= stop_ts:
                 source_name = f"Scheduler: {entry['name']} [{entry['uuid']}]"
-                await asyncio.to_thread(stop, source_name, clear=not has_next)
+                await asyncio.to_thread(stop, source_name, clear=True)
                 self.current_uuid = None
                 return
 
