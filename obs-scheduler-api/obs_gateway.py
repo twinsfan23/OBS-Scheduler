@@ -4,6 +4,8 @@ from typing import List, Optional, Dict
 
 from obsws_python import ReqClient
 
+from logging_setup import get_error_logger
+
 _client: Optional[ReqClient] = None
 _conn_settings: Dict[str, str] = {}
 
@@ -226,7 +228,10 @@ def _apply_audio_monitoring(client: ReqClient, settings: Dict[str, str]) -> Dict
             applied.append(name)
         else:
             failed.append(name)
-            print(f"Audio monitoring update failed for source '{name}'. Check the input name.")
+            get_error_logger().error(
+                "Audio monitoring update failed for source '%s'. Check the input name.",
+                name,
+            )
     return {"applied": applied, "failed": failed}
 
 
@@ -256,7 +261,10 @@ def _set_audio_monitoring_for_input(client: ReqClient, input_name: str, settings
             return True
     except Exception:
         pass
-    print(f"Audio monitoring update failed for source '{input_name}'. Check the exact input name.")
+    get_error_logger().error(
+        "Audio monitoring update failed for source '%s'. Check the exact input name.",
+        input_name,
+    )
     return False
 
 
@@ -353,7 +361,25 @@ def stop(source_name: str, clear: bool = False):
     client = _ensure_client()
     settings = _resolve_settings()
     if clear:
-        client.remove_input(source_name)
+        try:
+            resp = client.get_scene_item_id(settings["scene"], source_name)
+            client.set_scene_item_enabled(settings["scene"], resp.scene_item_id, False)
+            time.sleep(0.1)
+        except Exception:
+            pass
+        try:
+            client.remove_input(source_name)
+        except Exception:
+            try:
+                resp = client.get_scene_item_id(settings["scene"], source_name)
+                if hasattr(client, "remove_scene_item"):
+                    client.remove_scene_item(settings["scene"], resp.scene_item_id)
+                elif hasattr(client, "call"):
+                    client.call("RemoveSceneItem", {"sceneName": settings["scene"], "sceneItemId": resp.scene_item_id})
+                elif hasattr(client, "send"):
+                    client.send("RemoveSceneItem", {"sceneName": settings["scene"], "sceneItemId": resp.scene_item_id})
+            except Exception:
+                pass
     else:
         try:
             resp = client.get_scene_item_id(settings["scene"], source_name)

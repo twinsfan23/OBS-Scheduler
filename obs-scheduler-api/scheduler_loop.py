@@ -12,6 +12,7 @@ from data_provider import (
 )
 from pathlib import Path
 from obs_gateway import play, stop, set_current_scene
+from logging_setup import get_error_logger
 
 
 def _now_ms() -> int:
@@ -35,7 +36,7 @@ class PlaybackLoop:
             try:
                 await self.tick()
             except Exception as exc:
-                print("Playback loop error:", exc)
+                get_error_logger().exception("Playback loop error: %s", exc)
             await asyncio.sleep(1)
 
     async def tick(self):
@@ -71,7 +72,7 @@ class PlaybackLoop:
                 source_name = f"Scheduler: {entry['name']} [{entry['uuid']}]"
                 await asyncio.to_thread(stop, source_name, clear=True)
                 self.current_uuid = None
-                return
+                continue
 
         if self.current_uuid is not None and not found_current:
             self.current_uuid = None

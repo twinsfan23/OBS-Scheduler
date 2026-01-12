@@ -1380,7 +1380,7 @@
         container.appendChild(grid);
     }
 
-    function set_active_view(view) {
+    function set_active_view(view, preserveDate) {
         var tabs = document.querySelectorAll('.tab-btn');
         tabs.forEach(function(btn) {
             btn.classList.toggle('active', btn.dataset.view === view);
@@ -1397,11 +1397,15 @@
             renderMonthView(schedule_data);
         }
         if (view === 'day') {
-            dayViewDate = getZonedToday();
+            if (!preserveDate) {
+                dayViewDate = getZonedToday();
+            }
             renderDayView(schedule_data);
         }
         if (view === 'week') {
-            weekStartDate = getZonedToday();
+            if (!preserveDate) {
+                weekStartDate = getZonedToday();
+            }
             renderWeekView(schedule_data);
         }
     }
@@ -1409,7 +1413,7 @@
     function set_day_view(year, month, day) {
         dayViewDate = new Date(year, month - 1, day);
         renderDayView(schedule_data);
-        set_active_view('day');
+        set_active_view('day', true);
     }
 
     function wireViewTabs() {
